@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kamus Mandarin Saya</title>
+<script src="xlsx.full.min.js"></script>
+<style>
+  :root{
+    --bg:#f4f5fb;
+    --card:#ffffff;
+    --primary:#5b4bde;
+    --primary-dark:#463bb0;
+    --text:#1f2233;
+    --muted:#6b7086;
+    --border:#e4e5f1;
+    --green:#1f9d55;
+    --red:#e5484d;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:var(--bg);
+    color:var(--text);
+    padding:24px 16px 60px;
+  }
+  .wrap{max-width:960px;margin:0 auto;}
+  h1{font-size:26px;margin-bottom:4px;}
+  .sub{color:var(--muted);margin-bottom:24px;}
+  .nav{display:flex;gap:10px;margin-bottom:24px;flex-wrap:wrap;}
+  .nav a{
+    text-decoration:none;
+    padding:10px 16px;
+    background:var(--card);
+    border:1px solid var(--border);
+    border-radius:10px;
+    color:var(--text);
+    font-weight:600;
+    font-size:14px;
+  }
+  .nav a.active{background:var(--primary);color:#fff;border-color:var(--primary);}
+  .stats{display:flex;gap:16px;margin-bottom:24px;flex-wrap:wrap;}
+  .stat-card{
+    flex:1;min-width:140px;
+    background:var(--card);
+    border-radius:14px;
+    padding:20px;
+    box-shadow:0 1px 3px rgba(0,0,0,0.05);
+  }
+  .stat-card .num{font-size:28px;font-weight:800;}
+  .stat-card .label{color:var(--muted);font-size:14px;margin-top:4px;}
+  .card{
+    background:var(--card);
+    border-radius:16px;
+    padding:24px;
+    box-shadow:0 1px 3px rgba(0,0,0,0.05);
+    margin-bottom:20px;
+  }
+  .card h2{margin-top:0;font-size:18px;}
+  .upload-zone{
+    border:2px dashed var(--border);
+    border-radius:12px;
+    padding:28px;
+    text-align:center;
+    color:var(--muted);
+    cursor:pointer;
+    transition:.15s;
+  }
+  .upload-zone:hover{border-color:var(--primary);background:#f8f8ff;}
+  .upload-zone input{display:none;}
+  .btn{
+    background:var(--primary);
+    color:#fff;
+    border:none;
+    border-radius:10px;
+    padding:12px 20px;
+    font-weight:700;
+    font-size:15px;
+    cursor:pointer;
+  }
+  .btn:hover{background:var(--primary-dark);}
+  .btn.secondary{background:#fff;color:var(--text);border:1px solid var(--border);}
+  .btn.secondary:hover{background:#f2f2fa;}
+  .btn.danger{background:#fff;color:var(--red);border:1px solid #f3c8c8;}
+  .btn.danger:hover{background:#fff0f0;}
+  .row-actions{display:flex;gap:10px;margin-top:14px;flex-wrap:wrap;}
+  .import-report{
+    margin-top:14px;
+    font-size:14px;
+    padding:12px 14px;
+    border-radius:10px;
+    background:#f3f4fb;
+    display:none;
+  }
+  .import-report.show{display:block;}
+  table{width:100%;border-collapse:collapse;font-size:15px;}
+  th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--border);}
+  th{color:var(--muted);font-size:13px;text-transform:uppercase;letter-spacing:.03em;}
+  td.hanzi{font-size:22px;}
+  .del-btn{
+    border:none;background:none;color:var(--red);cursor:pointer;font-size:13px;font-weight:600;
+  }
+  .search{
+    width:100%;
+    padding:10px 14px;
+    border:1px solid var(--border);
+    border-radius:10px;
+    font-size:14px;
+    margin-bottom:14px;
+  }
+  .empty{color:var(--muted);text-align:center;padding:30px 0;}
+  .table-wrap{max-height:480px;overflow:auto;}
+  .toast{
+    position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
+    background:var(--text);color:#fff;padding:12px 20px;border-radius:10px;
+    font-size:14px;opacity:0;pointer-events:none;transition:.25s;
+  }
+  .toast.show{opacity:1;bottom:34px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>📖 Kamus Mandarin Saya</h1>
+  <div class="sub">Kata-kata yang sudah kamu pelajari, tersimpan otomatis di browser ini.</div>
+
+  <div class="nav">
+    <a href="kamus.html" class="active">📗 Kamus</a>
+    <a href="quiz.html">✏️ Kuis</a>
+  </div>
+
+  <div class="stats">
+    <div class="stat-card">
+      <div class="num" id="statTotal">0</div>
+      <div class="label">Total kata</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Impor dari Excel</h2>
+    <p style="color:var(--muted);font-size:14px;margin-top:-8px;">
+      File .xlsx / .xls dengan kolom (secara berurutan): <b>Hanzi</b>, <b>Pinyin</b>, <b>Arti</b>. Baris pertama boleh header atau langsung data.
+    </p>
+    <label class="upload-zone" id="dropZone">
+      <input type="file" id="fileInput" accept=".xlsx,.xls,.csv">
+      <div id="dropText">📤 Klik atau seret file Excel ke sini</div>
+    </label>
+    <div class="import-report" id="importReport"></div>
+  </div>
+
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+      <h2 style="margin:0;">Daftar Kosakata</h2>
+      <div class="row-actions" style="margin:0;">
+        <button class="btn secondary" id="exportBtn">⬇ Export</button>
+        <button class="btn danger" id="clearBtn">🗑 Hapus Semua</button>
+      </div>
+    </div>
+    <input type="text" class="search" id="searchInput" placeholder="Cari hanzi, pinyin, atau arti...">
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Hanzi</th><th>Pinyin</th><th>Arti</th><th></th></tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+      <div class="empty" id="emptyState" style="display:none;">Belum ada kosakata. Impor file Excel di atas untuk mulai.</div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const STORAGE_KEY = 'mandarinKamus';
+
+function loadWords(){
+  try{
+    return JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+  }catch(e){ return []; }
+}
+function saveWords(words){
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(words));
+}
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 2200);
+}
+
+let words = loadWords();
+
+function render(){
+  const body = document.getElementById('tableBody');
+  const search = document.getElementById('searchInput').value.trim().toLowerCase();
+  const filtered = words.filter(w =>
+    !search ||
+    w.hanzi.toLowerCase().includes(search) ||
+    w.pinyin.toLowerCase().includes(search) ||
+    w.arti.toLowerCase().includes(search)
+  );
+  body.innerHTML = '';
+  document.getElementById('emptyState').style.display = filtered.length ? 'none' : 'block';
+  filtered.slice().reverse().forEach(w=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="hanzi">${escapeHtml(w.hanzi)}</td>
+      <td>${escapeHtml(w.pinyin)}</td>
+      <td>${escapeHtml(w.arti)}</td>
+      <td><button class="del-btn" data-id="${w.id}">Hapus</button></td>
+    `;
+    body.appendChild(tr);
+  });
+  document.getElementById('statTotal').textContent = words.length;
+}
+
+function escapeHtml(str){
+  const div = document.createElement('div');
+  div.textContent = str ?? '';
+  return div.innerHTML;
+}
+
+document.getElementById('tableBody').addEventListener('click', (e)=>{
+  if(e.target.classList.contains('del-btn')){
+    const id = e.target.getAttribute('data-id');
+    words = words.filter(w=>String(w.id) !== String(id));
+    saveWords(words);
+    render();
+    showToast('Kata dihapus');
+  }
+});
+
+document.getElementById('searchInput').addEventListener('input', render);
+
+document.getElementById('clearBtn').addEventListener('click', ()=>{
+  if(words.length === 0) return;
+  if(confirm('Hapus semua kosakata dari kamus? Tindakan ini tidak bisa dibatalkan.')){
+    words = [];
+    saveWords(words);
+    render();
+    showToast('Semua kosakata dihapus');
+  }
+});
+
+document.getElementById('exportBtn').addEventListener('click', ()=>{
+  if(words.length === 0){ showToast('Belum ada data untuk diexport'); return; }
+  const data = words.map(w=>({Hanzi:w.hanzi, Pinyin:w.pinyin, Arti:w.arti}));
+  const ws = XLSX.utils.json_to_sheet(data);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Kamus');
+
+  if(window.AndroidSaver && typeof window.AndroidSaver.saveBase64File === 'function'){
+    // Jalan di dalam app Android: simpan lewat native bridge ke folder Downloads
+    const base64 = XLSX.write(wb, {bookType:'xlsx', type:'base64'});
+    const mime = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+    window.AndroidSaver.saveBase64File(base64, 'kamus-mandarin.xlsx', mime);
+  } else {
+    // Fallback untuk browser biasa
+    XLSX.writeFile(wb, 'kamus-mandarin.xlsx');
+  }
+});
+
+const fileInput = document.getElementById('fileInput');
+const dropZone = document.getElementById('dropZone');
+
+fileInput.addEventListener('change', (e)=>{
+  if(e.target.files.length) handleFile(e.target.files[0]);
+});
+
+dropZone.addEventListener('dragover', (e)=>{ e.preventDefault(); dropZone.style.borderColor = 'var(--primary)'; });
+dropZone.addEventListener('dragleave', ()=>{ dropZone.style.borderColor = ''; });
+dropZone.addEventListener('drop', (e)=>{
+  e.preventDefault();
+  dropZone.style.borderColor = '';
+  if(e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+});
+
+function normalizeHanzi(s){
+  return String(s ?? '').trim();
+}
+
+function handleFile(file){
+  const reader = new FileReader();
+  reader.onload = (evt)=>{
+    try{
+      const data = new Uint8Array(evt.target.result);
+      const wb = XLSX.read(data, {type:'array'});
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(sheet, {header:1, defval:''});
+
+      let added = 0, skippedDup = 0, skippedInvalid = 0;
+      const existingHanzi = new Set(words.map(w=>w.hanzi));
+
+      rows.forEach((row, idx)=>{
+        if(!row || row.length === 0) return;
+        let [hanzi, pinyin, arti] = row;
+        hanzi = normalizeHanzi(hanzi);
+        pinyin = String(pinyin ?? '').trim();
+        arti = String(arti ?? '').trim();
+
+        // skip likely header row
+        if(idx === 0 && (hanzi.toLowerCase() === 'hanzi' || pinyin.toLowerCase() === 'pinyin')) return;
+
+        if(!hanzi || !pinyin || !arti){
+          if(hanzi || pinyin || arti) skippedInvalid++;
+          return;
+        }
+        if(existingHanzi.has(hanzi)){
+          skippedDup++;
+          return;
+        }
+        words.push({
+          id: Date.now() + '-' + Math.random().toString(36).slice(2,8),
+          hanzi, pinyin, arti
+        });
+        existingHanzi.add(hanzi);
+        added++;
+      });
+
+      saveWords(words);
+      render();
+
+      const report = document.getElementById('importReport');
+      report.classList.add('show');
+      report.innerHTML = `✅ <b>${added}</b> kata baru ditambahkan.` +
+        (skippedDup ? ` &nbsp;|&nbsp; ⚠️ <b>${skippedDup}</b> duplikat dilewati.` : '') +
+        (skippedInvalid ? ` &nbsp;|&nbsp; ❌ <b>${skippedInvalid}</b> baris tidak valid dilewati.` : '');
+
+      showToast(`Impor selesai: ${added} kata ditambahkan`);
+      fileInput.value = '';
+    }catch(err){
+      alert('Gagal membaca file. Pastikan formatnya benar.\n' + err.message);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+render();
+</script>
+</body>
+</html>

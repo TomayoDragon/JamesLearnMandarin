@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kuis Mandarin</title>
+<style>
+  :root{
+    --bg:#f4f5fb;
+    --card:#ffffff;
+    --primary:#5b4bde;
+    --primary-dark:#463bb0;
+    --text:#1f2233;
+    --muted:#6b7086;
+    --border:#e4e5f1;
+    --green:#1f9d55;
+    --green-bg:#eafaf0;
+    --red:#e5484d;
+    --red-bg:#fdeeee;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:var(--bg);
+    color:var(--text);
+    padding:24px 16px 60px;
+  }
+  .wrap{max-width:720px;margin:0 auto;}
+  h1{font-size:26px;margin-bottom:4px;}
+  .sub{color:var(--muted);margin-bottom:24px;}
+  .nav{display:flex;gap:10px;margin-bottom:24px;flex-wrap:wrap;}
+  .nav a{
+    text-decoration:none;
+    padding:10px 16px;
+    background:var(--card);
+    border:1px solid var(--border);
+    border-radius:10px;
+    color:var(--text);
+    font-weight:600;
+    font-size:14px;
+  }
+  .nav a.active{background:var(--primary);color:#fff;border-color:var(--primary);}
+  .stats{display:flex;gap:16px;margin-bottom:24px;flex-wrap:wrap;}
+  .stat-card{
+    flex:1;min-width:110px;
+    background:var(--card);
+    border-radius:14px;
+    padding:20px;
+    box-shadow:0 1px 3px rgba(0,0,0,0.05);
+    text-align:left;
+  }
+  .stat-card .num{font-size:28px;font-weight:800;}
+  .stat-card .label{color:var(--muted);font-size:14px;margin-top:4px;}
+  .card{
+    background:var(--card);
+    border-radius:16px;
+    padding:32px 28px;
+    box-shadow:0 1px 3px rgba(0,0,0,0.05);
+    margin-bottom:20px;
+  }
+  .label-top{color:var(--muted);font-size:14px;margin-bottom:6px;}
+  .hanzi-display{
+    font-size:64px;
+    text-align:center;
+    margin:20px 0 30px;
+    font-weight:500;
+    letter-spacing:4px;
+  }
+  input#pinyinInput{
+    width:100%;
+    padding:16px 18px;
+    font-size:17px;
+    border:2px solid var(--primary);
+    border-radius:12px;
+    outline:none;
+    margin-bottom:16px;
+  }
+  .btn-row{display:flex;gap:12px;}
+  .btn{
+    flex:1;
+    background:var(--primary);
+    color:#fff;
+    border:none;
+    border-radius:12px;
+    padding:15px 20px;
+    font-weight:700;
+    font-size:16px;
+    cursor:pointer;
+  }
+  .btn:hover{background:var(--primary-dark);}
+  .btn.secondary{
+    flex:0 0 auto;
+    background:#f0f0f7;
+    color:var(--muted);
+    cursor:not-allowed;
+  }
+  .btn.secondary.enabled{
+    background:#fff;
+    color:var(--text);
+    border:1px solid var(--border);
+    cursor:pointer;
+  }
+  .btn.secondary.enabled:hover{background:#f2f2fa;}
+  .feedback{
+    margin-top:16px;
+    padding:14px 16px;
+    border-radius:10px;
+    font-size:14px;
+    display:none;
+  }
+  .feedback.correct{display:block;background:var(--green-bg);color:var(--green);}
+  .feedback.wrong{display:block;background:var(--red-bg);color:var(--red);}
+  .feedback b{font-size:15px;}
+  .empty-card{
+    text-align:center;
+    padding:50px 20px;
+    color:var(--muted);
+  }
+  .empty-card a{color:var(--primary);font-weight:700;text-decoration:none;}
+  .toggle-row{
+    display:flex;justify-content:space-between;align-items:center;
+    font-size:13px;color:var(--muted);margin-top:14px;
+  }
+  .toggle-row label{display:flex;align-items:center;gap:6px;cursor:pointer;}
+  .progress-bar{
+    height:6px;background:var(--border);border-radius:6px;overflow:hidden;margin-bottom:24px;
+  }
+  .progress-bar .fill{
+    height:100%;background:var(--primary);width:0%;transition:width .3s;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>✏️ Kuis Mandarin</h1>
+  <div class="sub">Uji hapalan pinyin dari kosakata yang sudah kamu pelajari.</div>
+
+  <div class="nav">
+    <a href="kamus.html">📗 Kamus</a>
+    <a href="quiz.html" class="active">✏️ Kuis</a>
+  </div>
+
+  <div class="stats">
+    <div class="stat-card"><div class="num" id="statCorrect">0</div><div class="label">Benar</div></div>
+    <div class="stat-card"><div class="num" id="statAnswered">0</div><div class="label">Dijawab</div></div>
+    <div class="stat-card"><div class="num" id="statAccuracy">0%</div><div class="label">Akurasi</div></div>
+  </div>
+
+  <div class="progress-bar"><div class="fill" id="progressFill"></div></div>
+
+  <div id="quizArea"></div>
+</div>
+
+<script>
+const STORAGE_KEY = 'mandarinKamus';
+
+function loadWords(){
+  try{
+    return JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+  }catch(e){ return []; }
+}
+
+let allWords = loadWords();
+let pool = [];
+let current = null;
+let correctCount = 0;
+let answeredCount = 0;
+let checked = false;
+
+function shuffle(arr){
+  const a = arr.slice();
+  for(let i = a.length - 1; i > 0; i--){
+    const j = Math.floor(Math.random() * (i+1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function refillPool(){
+  pool = shuffle(allWords);
+}
+
+function nextWord(){
+  if(pool.length === 0) refillPool();
+  current = pool.pop();
+  checked = false;
+  renderQuiz();
+}
+
+// Strip tone marks so nada tidak diperhatikan: bèiyǐng -> beiying
+const TONE_MAP = {
+  'ā':'a','á':'a','ǎ':'a','à':'a',
+  'ē':'e','é':'e','ě':'e','è':'e',
+  'ī':'i','í':'i','ǐ':'i','ì':'i',
+  'ō':'o','ó':'o','ǒ':'o','ò':'o',
+  'ū':'u','ú':'u','ǔ':'u','ù':'u',
+  'ǖ':'u','ǘ':'u','ǚ':'u','ǜ':'u','ü':'u',
+  'Ā':'a','Á':'a','Ǎ':'a','À':'a',
+  'Ē':'e','É':'e','Ě':'e','È':'e',
+  'Ī':'i','Í':'i','Ǐ':'i','Ì':'i',
+  'Ō':'o','Ó':'o','Ǒ':'o','Ò':'o',
+  'Ū':'u','Ú':'u','Ǔ':'u','Ù':'u'
+};
+
+function normalizePinyin(str){
+  return String(str ?? '')
+    .trim()
+    .toLowerCase()
+    .split('').map(ch => TONE_MAP[ch] || ch).join('')
+    .replace(/v/g, 'u')          // v juga dianggap sama dengan u/ü
+    .replace(/\s+/g, '')
+    .replace(/[0-9]/g, ''); // abaikan angka nada seperti bei4ying3
+}
+
+function renderQuiz(){
+  const area = document.getElementById('quizArea');
+
+  if(allWords.length === 0){
+    area.innerHTML = `
+      <div class="card empty-card">
+        Kamu belum punya kosakata di kamus.<br>
+        <a href="kamus.html">Impor kosakata dulu di halaman Kamus →</a>
+      </div>
+    `;
+    return;
+  }
+
+  area.innerHTML = `
+    <div class="card">
+      <div class="label-top">Kata/frasa</div>
+      <div class="hanzi-display">${escapeHtml(current.hanzi)}</div>
+      <input type="text" id="pinyinInput" placeholder="Ketik pinyin di sini..." autocomplete="off" autofocus>
+      <div class="btn-row">
+        <button class="btn" id="checkBtn">Periksa</button>
+        <button class="btn secondary" id="nextBtn">Next →</button>
+      </div>
+      <div class="feedback" id="feedback"></div>
+    </div>
+  `;
+
+  const input = document.getElementById('pinyinInput');
+  const checkBtn = document.getElementById('checkBtn');
+  const nextBtn = document.getElementById('nextBtn');
+
+  input.focus();
+
+  function doCheck(){
+    if(checked) return;
+    const userVal = input.value.trim();
+    if(!userVal) return;
+    checked = true;
+    answeredCount++;
+
+    const isCorrect = normalizePinyin(userVal) === normalizePinyin(current.pinyin);
+    if(isCorrect) correctCount++;
+
+    const feedback = document.getElementById('feedback');
+    feedback.className = 'feedback ' + (isCorrect ? 'correct' : 'wrong');
+    feedback.innerHTML = isCorrect
+      ? `✅ Benar! <b>${escapeHtml(current.hanzi)}</b> = <b>${escapeHtml(current.pinyin)}</b> (${escapeHtml(current.arti)})`
+      : `❌ Kurang tepat. Jawaban: <b>${escapeHtml(current.pinyin)}</b> — ${escapeHtml(current.arti)}`;
+
+    nextBtn.classList.add('enabled');
+    input.readOnly = true;
+    updateStats();
+  }
+
+  checkBtn.addEventListener('click', doCheck);
+  nextBtn.addEventListener('click', ()=>{ if(checked) nextWord(); });
+
+  input.addEventListener('keydown', (e)=>{
+    if(e.key === 'Enter'){
+      e.preventDefault();
+      if(!checked) doCheck();
+      else nextWord();
+    }
+  });
+}
+
+function updateStats(){
+  document.getElementById('statCorrect').textContent = correctCount;
+  document.getElementById('statAnswered').textContent = answeredCount;
+  const acc = answeredCount ? Math.round((correctCount / answeredCount) * 100) : 0;
+  document.getElementById('statAccuracy').textContent = acc + '%';
+
+  const total = allWords.length;
+  const doneInRound = total - pool.length;
+  const pct = total ? Math.round((doneInRound / total) * 100) : 0;
+  document.getElementById('progressFill').style.width = pct + '%';
+}
+
+function escapeHtml(str){
+  const div = document.createElement('div');
+  div.textContent = str ?? '';
+  return div.innerHTML;
+}
+
+// init
+allWords = loadWords();
+if(allWords.length > 0){
+  refillPool();
+  nextWord();
+} else {
+  renderQuiz();
+}
+updateStats();
+</script>
+</body>
+</html>
