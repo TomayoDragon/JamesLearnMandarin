@@ -5,7 +5,7 @@
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
         android:label="Kuis Mandarin"
-        android:theme="@style/Theme.AppCompat.DayNight.NoActionBar"
+        android:theme="@android:style/Theme.DeviceDefault.NoActionBar"
         android:usesCleartextTraffic="false">
 
         <activity
